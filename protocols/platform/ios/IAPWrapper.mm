@@ -36,14 +36,21 @@ using namespace cocos2d::plugin;
 {
     PluginProtocol* plugin = PluginUtilsIOS::getPluginPtr(obj);
     ProtocolIAP* iapPlugin = dynamic_cast<ProtocolIAP*>(plugin);
+    PayResultListener *listener = iapPlugin->getResultListener();
     ProtocolIAP::ProtocolIAPCallback callback = iapPlugin->getCallback();
     const char* chMsg = [msg UTF8String];
     PayResultCode cRet = (PayResultCode) ret;
+    //======== zrong 2015-03-22
+    // 那个傻 B 写的代码，明明把 listener 废弃了，这里又不判断，那callback 有何用？
     if (iapPlugin) {
-        iapPlugin->onPayResult(cRet, chMsg);
-    }else if(callback){
-        std::string stdmsg(chMsg);
-        callback(cRet,stdmsg);
+        if (listener) {
+            iapPlugin->onPayResult(cRet, chMsg);
+        }else if(callback){
+            std::string stdmsg(chMsg);
+            callback(cRet,stdmsg);
+        }else {
+            PluginUtilsIOS::outputLog("No listener and callback!");
+        }
     } else {
         PluginUtilsIOS::outputLog("Can't find the C++ object of the IAP plugin");
     }
@@ -68,7 +75,32 @@ using namespace cocos2d::plugin;
             }
             listener->onRequestProductsResult((IAPProductRequest )ret,pdlist);
         }else if(callback){
-            NSString *productInfo =  [ParseUtils NSDictionaryToNSString:products];
+            // zrong 2015-03-22 START ========
+            // the projects cannot convert to json data.
+            // will get a error: 'NSInvalidArgumentException', reason: 'Invalid type in JSON write (SKProduct)'
+            NSMutableArray *jsonArray = [[NSMutableArray alloc] init];
+            for (SKProduct * skp in products) {
+                NSDictionary *dict = [NSDictionary dictionaryWithObjectsAndKeys:
+                                      skp.productIdentifier, @"productIdentifier",
+                                      skp.localizedTitle, @"localizedTitle",
+                                      skp.localizedDescription, @"localizedDescriptiono",
+                                      skp.price, @"price",
+                                      nil];
+                [jsonArray addObject:dict];
+            }
+            
+            NSString *productInfo = nil;
+            NSError *error;
+            NSData *jsonData = [NSJSONSerialization dataWithJSONObject:jsonArray
+                                                               options:0 // Pass 0 if you don't care about the readability of the generated string
+                                                                 error:&error];
+            if (! jsonData) {
+                NSLog(@"Got an error: %@", error);
+            } else {
+                productInfo = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
+            }
+            // zrong 2015-03-22 END ========
+            
             const char *charProductInfo;
             if(productInfo !=nil){
                 charProductInfo =[productInfo UTF8String];

@@ -39,6 +39,7 @@ gen/
 assets/
 local.properties
 lint.xml
+proguard-project.txt
 
 # Ignore files built by NaCl
 samples/Cpp/HelloCpp/proj.nacl/Resources/
