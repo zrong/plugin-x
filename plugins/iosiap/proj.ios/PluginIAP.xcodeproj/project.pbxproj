@@ -232,13 +232,10 @@
 				);
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "IOSIAP/PluginIAP-Prefix.pch";
-				HEADER_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(SRCROOT)/../../../protocols/platform/ios",
-				);
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = PluginIAP;
 				SKIP_INSTALL = YES;
+				USER_HEADER_SEARCH_PATHS = "$(SRCROOT)/../../../protocols/include $(SRCROOT)/../../../protocols/platform/ios";
 				VALID_ARCHS = "armv7 arm64 i386";
 			};
 			name = Debug;
@@ -253,13 +250,10 @@
 				);
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "IOSIAP/PluginIAP-Prefix.pch";
-				HEADER_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(SRCROOT)/../../../protocols/platform/ios",
-				);
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = PluginIAP;
 				SKIP_INSTALL = YES;
+				USER_HEADER_SEARCH_PATHS = "$(SRCROOT)/../../../protocols/include $(SRCROOT)/../../../protocols/platform/ios";
 				VALID_ARCHS = "armv7 arm64 i386";
 			};
 			name = Release;
