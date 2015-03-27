@@ -36,23 +36,24 @@ typedef std::map<std::string, std::string> TProductInfo;
 typedef std::vector<TProductInfo> TProductList;
 typedef enum 
 {
-    kPaySuccess = 0,
-    kPayFail,
-    kPayCancel,
-    kPayTimeOut,
+    PaySuccess = 0,
+    PayFail,
+    PayCancel,
+    PayTimeOut,
+    Paying,
 } PayResultCode;
     
 typedef enum {
-    RequestSuccees=0,
+    RequestSuccees=10,
     RequestFail,
     RequestTimeout,
-} IAPProductRequest;
+} IAPProductRequestCode;
 
 class PayResultListener
 {
 public:
     virtual void onPayResult(PayResultCode ret, const char* msg, TProductInfo info) = 0;
-    virtual void onRequestProductsResult(IAPProductRequest ret, TProductList info){}
+    virtual void onRequestProductsResult(IAPProductRequestCode ret, TProductList info){}
 };
 
 class ProtocolIAP : public PluginProtocol
@@ -127,6 +128,8 @@ protected:
     TProductInfo _curInfo;
     PayResultListener* _listener;
     ProtocolIAPCallback _callback;
+private:
+    bool payAndCheck(TProductInfo info);
 };
 
 }} // namespace cocos2d { namespace plugin {

@@ -59,29 +59,42 @@ void ProtocolIAP::configDeveloperInfo(TIAPDeveloperInfo devInfo)
         }
     }
 }
-
-void ProtocolIAP::payForProduct(TProductInfo info)
+    
+bool ProtocolIAP::payAndCheck(TProductInfo info)
 {
     if (_paying)
     {
-        PluginUtilsIOS::outputLog("Now is paying");
-        return;
+        std::string stdstr("Now is paying.");
+        if (NULL != _callback)
+        {
+            _callback(Paying, stdstr);
+        }
+        else if (NULL != _listener)
+        {
+            onPayResult(Paying, stdstr.c_str());
+        }
+        PluginUtilsIOS::outputLog(stdstr.c_str());
+        return false;
     }
-
     if (info.empty())
     {
-        if (NULL != _listener)
+        std::string stdstr("Product info error");
+        if (NULL != _callback)
         {
-            onPayResult(kPayFail, "Product info error");
+            _callback(PayFail, stdstr);
+        }
+        else if (NULL != _listener)
+        {
+            onPayResult(PayFail, stdstr.c_str());
         }
         PluginUtilsIOS::outputLog("The product info is empty for %s!", this->getPluginName());
-        return;
+        return false;
     }
     else
     {
         _paying = true;
         _curInfo = info;
-        
+
         PluginOCData* pData = PluginUtilsIOS::getPluginOCData(this);
         assert(pData != NULL);
         
@@ -92,45 +105,25 @@ void ProtocolIAP::payForProduct(TProductInfo info)
             [curObj payForProduct:dict];
         }
     }
+    return true;
 }
-    void ProtocolIAP::payForProduct(TProductInfo info,ProtocolIAPCallback callback)
-    {
-        if (_paying)
-        {
-            PluginUtilsIOS::outputLog("Now is paying");
-            return;
-        }
-        
-        if (info.empty())
-        {
-            if (NULL != callback)
-            {
-                std::string stdstr("Product info error");
-                callback(kPayFail,stdstr);
-            }
-            PluginUtilsIOS::outputLog("The product info is empty for %s!", this->getPluginName());
-            return;
-        }
-        else
-        {
-            _paying = true;
-            _curInfo = info;
-            setCallback(callback);
-            PluginOCData* pData = PluginUtilsIOS::getPluginOCData(this);
-            assert(pData != NULL);
-            
-            id ocObj = pData->obj;
-            if ([ocObj conformsToProtocol:@protocol(InterfaceIAP)]) {
-                NSObject<InterfaceIAP>* curObj = ocObj;
-                NSMutableDictionary* dict = PluginUtilsIOS::createDictFromMap(&info);
-                [curObj payForProduct:dict];
-            }
-        }
-    }
+
+void ProtocolIAP::payForProduct(TProductInfo info)
+{
+    payAndCheck(info);
+}
+    
+void ProtocolIAP::payForProduct(TProductInfo info,ProtocolIAPCallback callback)
+{
+    setCallback(callback);
+    payAndCheck(info);
+}
+    
 void ProtocolIAP::setResultListener(PayResultListener* pListener)
 {
     _listener = pListener;
 }
+
 void ProtocolIAP::onPayResult(PayResultCode ret, const char* msg)
 {
     _paying = false;

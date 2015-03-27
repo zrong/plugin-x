@@ -24,25 +24,30 @@ THE SOFTWARE.
 
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
+#import <StoreKit/StoreKit.h>
 
 typedef enum {
     PaymentTransactionStatePurchased = 0,
     PaymentTransactionStateFailed,
     PaymentTransactionStateRestored,
     PaymentTransactionStateTimeout,
-} IAPResult;
+    PaymentTransactionStatePurchasing,
+} IAPResultCode;
 // zrong 2015-03-22 lua need some different enum value.
 typedef enum {
     RequestSuccees=10,
     RequestFail,
     RequestTimeout,
-} ProductRequest;
+} ProductRequestCode;
 
 @interface IAPWrapper : NSObject
 {
     
 }
 
-+ (void) onPayResult:(id) obj withRet:(IAPResult) ret withMsg:(NSString*) msg;
-+(void) onRequestProduct:(id)ojb withRet:(ProductRequest) ret withProducts:(NSArray *)products;
++ (void) onPayResult:(id) obj withRet:(IAPResultCode) ret withMsg:(NSString*) msg;
++ (void) onRequestProduct:(id)ojb withRet:(ProductRequestCode) ret withProducts:(NSArray *)products;
++ (NSMutableDictionary*) productToDict:(SKProduct*) product;
++ (NSMutableDictionary*) transactionToDict:(SKPaymentTransaction*) transaction;
++ (NSString*) getJSONString:(id) jsonobj;
 @end

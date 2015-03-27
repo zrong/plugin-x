@@ -32,7 +32,7 @@ using namespace cocos2d::plugin;
 
 @implementation IAPWrapper
 
-+ (void) onPayResult:(id) obj withRet:(IAPResult) ret withMsg:(NSString*) msg
++ (void) onPayResult:(id) obj withRet:(IAPResultCode) ret withMsg:(NSString*) msg
 {
     PluginProtocol* plugin = PluginUtilsIOS::getPluginPtr(obj);
     ProtocolIAP* iapPlugin = dynamic_cast<ProtocolIAP*>(plugin);
@@ -41,7 +41,7 @@ using namespace cocos2d::plugin;
     const char* chMsg = [msg UTF8String];
     PayResultCode cRet = (PayResultCode) ret;
     //======== zrong 2015-03-22
-    // 那个傻 B 写的代码，明明把 listener 废弃了，这里又不判断，那callback 有何用？
+    // 哪个傻 B 写的代码，明明把 listener 废弃了，这里又不判断，那callback 有何用？
     if (iapPlugin) {
         if (listener) {
             iapPlugin->onPayResult(cRet, chMsg);
@@ -55,7 +55,8 @@ using namespace cocos2d::plugin;
         PluginUtilsIOS::outputLog("Can't find the C++ object of the IAP plugin");
     }
 }
-+(void) onRequestProduct:(id)obj withRet:(ProductRequest) ret withProducts:(NSArray *)products{
+
++(void) onRequestProduct:(id)obj withRet:(ProductRequestCode) ret withProducts:(NSArray *)products{
     PluginProtocol* plugin = PluginUtilsIOS::getPluginPtr(obj);
     ProtocolIAP* iapPlugin = dynamic_cast<ProtocolIAP*>(plugin);
     PayResultListener *listener = iapPlugin->getResultListener();
@@ -73,45 +74,71 @@ using namespace cocos2d::plugin;
                     pdlist.push_back(info);
                 }
             }
-            listener->onRequestProductsResult((IAPProductRequest )ret,pdlist);
+            listener->onRequestProductsResult((IAPProductRequestCode) ret,pdlist);
         }else if(callback){
             // zrong 2015-03-22 START ========
             // the projects cannot convert to json data.
             // will get a error: 'NSInvalidArgumentException', reason: 'Invalid type in JSON write (SKProduct)'
             NSMutableArray *jsonArray = [[NSMutableArray alloc] init];
             for (SKProduct * skp in products) {
-                NSDictionary *dict = [NSDictionary dictionaryWithObjectsAndKeys:
-                                      skp.productIdentifier, @"productIdentifier",
-                                      skp.localizedTitle, @"localizedTitle",
-                                      skp.localizedDescription, @"localizedDescriptiono",
-                                      skp.price, @"price",
-                                      nil];
+                NSDictionary *dict = [self productToDict:skp];
                 [jsonArray addObject:dict];
             }
             
-            NSString *productInfo = nil;
-            NSError *error;
-            NSData *jsonData = [NSJSONSerialization dataWithJSONObject:jsonArray
-                                                               options:0 // Pass 0 if you don't care about the readability of the generated string
-                                                                 error:&error];
-            if (! jsonData) {
-                NSLog(@"Got an error: %@", error);
-            } else {
-                productInfo = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
-            }
+            NSString *productInfo = [self getJSONString:jsonArray];
             // zrong 2015-03-22 END ========
             
             const char *charProductInfo;
-            if(productInfo !=nil){
+            if(productInfo != nil){
                 charProductInfo =[productInfo UTF8String];
             }else{
                 charProductInfo = "parse productInfo fail";
             }
             std::string stdstr(charProductInfo);
-            callback((IAPProductRequest )ret,stdstr);
+            callback((IAPProductRequestCode) ret,stdstr);
         }
     } else {
         PluginUtilsIOS::outputLog("Can't find the C++ object of the IAP plugin");
     }
+}
+
++(NSMutableDictionary*) productToDict:(SKProduct *)product
+{
+    return [NSMutableDictionary dictionaryWithObjectsAndKeys:
+                product.productIdentifier, @"productIdentifier",
+                product.localizedTitle, @"localizedTitle",
+                product.localizedDescription, @"localizedDescriptiono",
+                product.price, @"price",
+                nil];
+}
+
++ (NSMutableDictionary*) transactionToDict:(SKPaymentTransaction*) transaction
+{
+    NSMutableDictionary *dict = [[NSMutableDictionary alloc] init];
+    [dict setObject:transaction.transactionIdentifier forKey:@"transactionIdentifier"];
+    [dict setObject:[NSNumber numberWithInteger:transaction.transactionState] forKey:@"transactionState"];
+    [dict setObject:transaction.payment.productIdentifier forKey:@"productIdentifier"];
+    [dict setObject:[NSNumber numberWithInteger:transaction.payment.quantity] forKey:@"quantity"];
+    NSString *applicatioinUsername = transaction.payment.applicationUsername;
+    if (applicatioinUsername)
+    {
+        [dict setObject:transaction.payment.applicationUsername forKey:@"applicationUsername"];
+    }
+    return dict;
+}
+
++ (NSString*) getJSONString:(id)jsonObj
+{
+    NSString *jsonString = nil;
+    NSError *error;
+    NSData *jsonData = [NSJSONSerialization dataWithJSONObject:jsonObj
+                            options:0 // Pass 0 if you don't care about the readability of the generated string
+                            error:&error];
+    if (! jsonData) {
+        NSLog(@"Got an error: %@", error);
+    } else {
+        jsonString = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
+    }
+    return jsonString;
 }
 @end

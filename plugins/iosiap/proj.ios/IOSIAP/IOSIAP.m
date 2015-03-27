@@ -37,6 +37,7 @@ NSArray * _transactionArray;
 
 -(void) configDeveloperInfo: (NSMutableDictionary*) cpInfo{
 }
+
 - (void) payForProduct: (NSMutableDictionary*) cpInfo{
     NSString * pid = [cpInfo objectForKey:@"productId"];
     SKProduct *skProduct = [self getProductById:pid];
@@ -46,9 +47,11 @@ NSArray * _transactionArray;
         OUTPUT_LOG(@"add PaymentQueue");
     }
 }
+
 - (void) setDebugMode: (BOOL) _debug{
     self.debug = _debug;
 }
+
 - (NSString*) getSDKVersion{
     return @"1.0";
 }
@@ -61,6 +64,28 @@ NSArray * _transactionArray;
 -(void)setServerMode{
     _isServerMode = true;
 }
+
+-(BOOL)canPay
+{
+    return [SKPaymentQueue canMakePayments];
+}
+
+-(NSString*)getCurrentTransactions
+{
+    NSArray* transactions = [[SKPaymentQueue defaultQueue] transactions];
+    if( transactions == nil )
+    {
+        return @"[]";
+    }
+    
+    NSMutableArray *jsonArray = [NSMutableArray arrayWithCapacity:transactions.count];
+    for( SKPaymentTransaction* transaction in transactions)
+    {
+        [jsonArray addObject:[IAPWrapper transactionToDict:transaction]];
+    }
+    return [IAPWrapper getJSONString:jsonArray];
+}
+
 -(void)requestProducts:(NSString*) paramMap{
     [self setDebug:true];
     if(!_isAddObserver){
@@ -75,9 +100,7 @@ NSArray * _transactionArray;
     [_productsRequest start];
 
 }
--(NSString *)parseProductToString:(NSArray *) products{
-    return @"1";
-}
+
 -(SKProduct *)getProductById:(NSString *)productid{
     for (SKProduct * skProduct in _productArray) {
         if([skProduct.productIdentifier isEqualToString:productid]){
@@ -120,19 +143,31 @@ NSArray * _transactionArray;
                 break;
             case SKPaymentTransactionStateRestored:
                 [self restoreTransaction:transaction];
+                break;
+            case SKPaymentTransactionStatePurchasing:
+                [self purchasingTransaction:transaction];
+                break;
             default:
                 break;
         }
     };
 }
 
+- (NSString*)completeTransactionIOS61:(SKPaymentTransaction *)transaction
+{
+    // iOS 6.1 or earlier.
+    // Use SKPaymentTransaction's transactionReceipt.
+    return [self encode:(uint8_t *)transaction.transactionReceipt.bytes length:transaction.transactionReceipt.length];
+}
+
 - (void)completeTransaction:(SKPaymentTransaction *)transaction {
-    NSString *receipt = nil;
+    NSString *msg = nil;
     if(_isServerMode){
+        NSString *receipt = nil;
+        // iOS 6.1 or earlier.
+        // Use SKPaymentTransaction's transactionReceipt.
         if (floor(NSFoundationVersionNumber) <= NSFoundationVersionNumber_iOS_6_1) {
-            // iOS 6.1 or earlier.
-            // Use SKPaymentTransaction's transactionReceipt.
-            receipt = [self encode:(uint8_t *)transaction.transactionReceipt.bytes length:transaction.transactionReceipt.length];
+            receipt = [self completeTransactionIOS61:transaction];
 
         } else {
             // iOS 7 or later.
@@ -140,21 +175,25 @@ NSArray * _transactionArray;
             NSData *recData = [[NSData dataWithContentsOfURL:receiptURL] base64EncodedDataWithOptions:0];
             receipt = [[NSString alloc] initWithData:recData encoding:NSUTF8StringEncoding];
             if (!receipt) {
-                receipt = [self encode:(uint8_t *)transaction.transactionReceipt.bytes length:transaction.transactionReceipt.length];
+                receipt = [self completeTransactionIOS61:transaction];
             }
         }
-        [IAPWrapper onPayResult:self withRet:PaymentTransactionStatePurchased withMsg:receipt];
+        NSMutableDictionary* dict = [IAPWrapper transactionToDict:transaction];
+        [dict setObject:receipt forKey:@"transactionReceipt"];
+        msg = [IAPWrapper getJSONString:dict];
+        [IAPWrapper onPayResult:self withRet:PaymentTransactionStatePurchased withMsg:msg];
     }else{
         [self finishTransaction: transaction.payment.productIdentifier];
-        [IAPWrapper onPayResult:self withRet:PaymentTransactionStatePurchased withMsg:@""];
+        msg = [IAPWrapper getJSONString:[IAPWrapper transactionToDict:transaction]];
+        [IAPWrapper onPayResult:self withRet:PaymentTransactionStatePurchased withMsg:msg];
     }
-    
 }
 
 - (void)restoreTransaction:(SKPaymentTransaction *)transaction {
     OUTPUT_LOG(@"restoreTransaction...");
     [self finishTransaction:transaction.payment.productIdentifier];
-    [IAPWrapper onPayResult:self withRet:PaymentTransactionStateRestored withMsg:@""];
+    NSString* msg = [IAPWrapper getJSONString:[IAPWrapper transactionToDict:transaction]];
+    [IAPWrapper onPayResult:self withRet:PaymentTransactionStateRestored withMsg:msg];
 }
 
 - (void)failedTransaction:(SKPaymentTransaction *)transaction {
@@ -166,7 +205,14 @@ NSArray * _transactionArray;
     }
     
     [self finishTransaction:transaction.payment.productIdentifier];
-    [IAPWrapper onPayResult:self withRet:PaymentTransactionStateFailed withMsg:@""];
+    NSString* msg = [IAPWrapper getJSONString:[IAPWrapper transactionToDict:transaction]];
+    [IAPWrapper onPayResult:self withRet:PaymentTransactionStateFailed withMsg:msg];
+}
+
+- (void)purchasingTransaction:(SKPaymentTransaction*)transaction
+{
+    NSString* msg = [IAPWrapper getJSONString:[IAPWrapper transactionToDict:transaction]];
+    [IAPWrapper onPayResult:self withRet:PaymentTransactionStatePurchasing withMsg:msg];
 }
 
 - (void)restoreCompletedTransactions {
@@ -175,10 +221,18 @@ NSArray * _transactionArray;
 
 -(void) finishTransaction:(NSString *)productId{
     SKPaymentTransaction *transaction = [self getTranscationByProductId:productId];
+    OUTPUT_LOG(@"finishTransaction %@", productId);
+    if (transaction)
+    {
+        OUTPUT_LOG(@"finishTransaction transaction found: id %@", transaction.transactionIdentifier);
+    }else{
+        OUTPUT_LOG(@"finishTransaction cannot get a transactioin %@", productId);
+    }
     if(transaction){
         [[SKPaymentQueue defaultQueue] finishTransaction:transaction];
     }
 }
+
 -(SKPaymentTransaction *) getTranscationByProductId:(NSString *)productId{
     for(SKPaymentTransaction *tran in _transactionArray){
         if([tran.payment.productIdentifier isEqualToString:productId]){
@@ -187,6 +241,7 @@ NSArray * _transactionArray;
     }
     return NULL;
 }
+
 - (NSString *)encode:(const uint8_t *)input length:(NSInteger)length {
     static char table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
     
