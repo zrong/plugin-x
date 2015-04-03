@@ -62,11 +62,13 @@ void ProtocolIAP::configDeveloperInfo(TIAPDeveloperInfo devInfo)
     
 bool ProtocolIAP::payAndCheck(TProductInfo info)
 {
+    NSLog(@"ProtocolIAP::payAndCheck %@", _paying ? @"true" : @"false");
     if (_paying)
     {
         std::string stdstr("Now is paying.");
         if (NULL != _callback)
         {
+            _paying = false;
             _callback(Paying, stdstr);
         }
         else if (NULL != _listener)
@@ -81,6 +83,7 @@ bool ProtocolIAP::payAndCheck(TProductInfo info)
         std::string stdstr("Product info error");
         if (NULL != _callback)
         {
+            _paying = false;
             _callback(PayFail, stdstr);
         }
         else if (NULL != _listener)
@@ -122,6 +125,11 @@ void ProtocolIAP::payForProduct(TProductInfo info,ProtocolIAPCallback callback)
 void ProtocolIAP::setResultListener(PayResultListener* pListener)
 {
     _listener = pListener;
+}
+    
+void ProtocolIAP::setPaying(bool paying)
+{
+    _paying = paying;
 }
 
 void ProtocolIAP::onPayResult(PayResultCode ret, const char* msg)

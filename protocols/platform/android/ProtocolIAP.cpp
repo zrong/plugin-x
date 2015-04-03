@@ -105,7 +105,7 @@ void ProtocolIAP::payForProduct(TProductInfo info)
     {
         if (NULL != _listener)
         {
-            onPayResult(kPayFail, "Product info error");
+            onPayResult(PayFail, "Product info error");
         }
         PluginUtils::outputLog("ProtocolIAP", "The product info is empty!");
         return;

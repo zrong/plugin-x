@@ -32,6 +32,7 @@ typedef enum {
     PaymentTransactionStateRestored,
     PaymentTransactionStateTimeout,
     PaymentTransactionStatePurchasing,
+    PaymentTransactionStateNoProduct,
 } IAPResultCode;
 // zrong 2015-03-22 lua need some different enum value.
 typedef enum {

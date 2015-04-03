@@ -46,6 +46,10 @@ NSArray * _transactionArray;
         [[SKPaymentQueue defaultQueue] addPayment:payment];
         OUTPUT_LOG(@"add PaymentQueue");
     }
+    else
+    {
+        [IAPWrapper onPayResult:self withRet:PaymentTransactionStateNoProduct withMsg:@""];
+    }
 }
 
 - (void) setDebugMode: (BOOL) _debug{
@@ -133,6 +137,7 @@ NSArray * _transactionArray;
 - (void)paymentQueue:(SKPaymentQueue *)queue updatedTransactions:(NSArray *)transactions{
     _transactionArray = transactions;
     for (SKPaymentTransaction * transaction in transactions) {
+        OUTPUT_LOG(@"IOSIAP paymentQueue %d %@", transaction.transactionState, transaction.transactionIdentifier);
         switch (transaction.transactionState)
         {
             case SKPaymentTransactionStatePurchased:
@@ -162,6 +167,7 @@ NSArray * _transactionArray;
 
 - (void)completeTransaction:(SKPaymentTransaction *)transaction {
     NSString *msg = nil;
+    OUTPUT_LOG(@"completeTransaction isServerMode:%@", _isServerMode ? @"true" : @"false");
     if(_isServerMode){
         NSString *receipt = nil;
         // iOS 6.1 or earlier.
@@ -182,6 +188,7 @@ NSArray * _transactionArray;
         [dict setObject:receipt forKey:@"transactionReceipt"];
         msg = [IAPWrapper getJSONString:dict];
         [IAPWrapper onPayResult:self withRet:PaymentTransactionStatePurchased withMsg:msg];
+        //OUTPUT_LOG(@"in server mode, receipt:%@", receipt);
     }else{
         [self finishTransaction: transaction.payment.productIdentifier];
         msg = [IAPWrapper getJSONString:[IAPWrapper transactionToDict:transaction]];
@@ -211,6 +218,7 @@ NSArray * _transactionArray;
 
 - (void)purchasingTransaction:(SKPaymentTransaction*)transaction
 {
+    OUTPUT_LOG(@"purchasingTransaction...");
     NSString* msg = [IAPWrapper getJSONString:[IAPWrapper transactionToDict:transaction]];
     [IAPWrapper onPayResult:self withRet:PaymentTransactionStatePurchasing withMsg:msg];
 }

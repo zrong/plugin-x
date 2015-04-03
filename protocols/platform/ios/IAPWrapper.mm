@@ -47,6 +47,8 @@ using namespace cocos2d::plugin;
             iapPlugin->onPayResult(cRet, chMsg);
         }else if(callback){
             std::string stdmsg(chMsg);
+            // onPayResult 中也有还原 paying 的代码
+            iapPlugin->setPaying(false);
             callback(cRet,stdmsg);
         }else {
             PluginUtilsIOS::outputLog("No listener and callback!");
@@ -115,7 +117,10 @@ using namespace cocos2d::plugin;
 + (NSMutableDictionary*) transactionToDict:(SKPaymentTransaction*) transaction
 {
     NSMutableDictionary *dict = [[NSMutableDictionary alloc] init];
-    [dict setObject:transaction.transactionIdentifier forKey:@"transactionIdentifier"];
+    if(transaction.transactionIdentifier)
+    {
+        [dict setObject:transaction.transactionIdentifier forKey:@"transactionIdentifier"];
+    }
     [dict setObject:[NSNumber numberWithInteger:transaction.transactionState] forKey:@"transactionState"];
     [dict setObject:transaction.payment.productIdentifier forKey:@"productIdentifier"];
     [dict setObject:[NSNumber numberWithInteger:transaction.payment.quantity] forKey:@"quantity"];

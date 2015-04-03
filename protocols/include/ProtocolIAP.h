@@ -122,6 +122,8 @@ public:
     {
     	return _callback;
     }
+    
+    void setPaying(bool paying);
 protected:
     static bool _paying;
 
